@@ -91,12 +91,8 @@ namespace Spent
 }
 ```
 
-This will keep track of the company, description, purchase amount, purchase time, as well as a string that represents a path to our receipt in the phone's local storage.
-
 ##### 4. Add a expenses view model.
 En Spent vamos a ver la lista de gastos en que el usuario ha incurrido. Creamos por tanto el view model de nuestra primera pantalla. En la carpeta viewmodels la clase ExpensesViewModel que hereda de BaseViewModel
-
-Add new collection to the class for storing our expenses and initialize it in the constructor.
 
 ```csharp
 using System;
@@ -313,8 +309,7 @@ public partial class ExpenseDetailPage : ContentPage
 }
 ```
 
-Ahora nos toca navegar de nuestra lista a nuestro detalle. Podemos hacerlo usando la propiedad SelectedItem de nuestro ListView 
-Great! Now it's time to implement navigation from our `ListView` to our detail page. We can do this by using the `SelectedItem` property of the `ListView`. Update `ExpensesPage.xaml` to data bind the `ListView.SelectedItem` property to `SelectedExpenseItem`.
+Ahora nos toca navegar de nuestra lista a nuestro detalle. Podemos hacerlo usando la propiedad SelectedItem de nuestro ListView en nuestro ExpensesPage.xaml para conectarlo a la propiedad SelectedExpenseItem. 
 
 ```csharp
 <ListView ItemsSource="{Binding Expenses}"
@@ -330,7 +325,7 @@ Great! Now it's time to implement navigation from our `ListView` to our detail p
 </ListView>
 ```
 
-When the `SelectedItem` changes, we can navigate to the detail view for the `SelectedItem`. Open up `ExpensesViewModel` and add a property named `SelectedExpenseItem`.
+Cuando nuestro SelectedItem podemos navegar al detalle. Abrimos nuestro ExpensesViewModel y añadimos la propiedad SelectedExpenseItem
 
 ```csharp
 Expense selectedExpenseItem;
@@ -351,9 +346,9 @@ public Expense SelectedExpenseItem
 }
 ```
 
-In this code, we are updating the `SelectedExpenseItem`, and firing `OnPropertyChanged`. If the selected item is not null, we want to navigate to the detail page. Finally, we set the value to `null` to remove any cell highlighting that happens when a user taps the cell.
+En este código estamos actualizando SelectedExpenseItem y lanzando nuestro OnPropertyChanged. Si el elemento no es nulo queremos entonces navegar al siguiente elemento. Al final ponemos el valor a null para eliminar cualquier marca futura en el propio listview. 
 
-To handle navigation, we will need a reference to a `Page`. Let's add a class-level field typed `ExpensesPage`, add a parameter to the constructor of `ExpensesViewModel` to take in an `ExpensesPage`, and this equal to our new `ExpensesPage` field.
+Para manejar la navegación necesitamos referenciar a una página. Añadimos el campo de tipo ExpensePage y lo nombramos cómo page, añadimos al mismo tiempo el parámetro al constructor ExpensesViewModel y lo igualamos a nuestro campo. 
 
 ```csharp
 ExpensesPage page;
@@ -364,7 +359,7 @@ public ExpensesViewModel(ExpensesPage expensesPage)
 }
 ```
 
-Next, let's update our `SelectedExpenseItem` property to navigate when the value is changed.
+Ahora nos toca actualizar nuestra propiedad SelectedExpenseItem para que navegue cuando cambie el valor.
 
 ```csharp
 Expense selectedExpenseItem;
@@ -385,7 +380,7 @@ public Expense SelectedExpenseItem
 }
 ```
 
-We also need to update `Expenses.xaml.cs` to pass in `this` as a value to the `ExpensesViewModel` constructor.
+También tendremos que actualizar nuestra vista para indicarle con this, con qué página se tiene que inicializar el constructor de ExpensesViewModel. 
 
 ```csharp
 public partial class ExpensesPage : ContentPage
@@ -399,13 +394,14 @@ public partial class ExpensesPage : ContentPage
 }
 ```
 
-You may have caught that we are using a `Navigation` property of the page to push a new detail page onto the navigation stack. Right now, `ExpensesPage` is a `ContentPage`, which doesn't contain any ability to do navigation. To gain this ability, we must wrap our `ExpensesPage` in a [`NavigationPage`](https://developer.xamarin.com/api/type/Xamarin.Forms.NavigationPage/) to gain the ability to do push/pop and modal navigation. Jump over to `App.xaml.cs` and update the `MainPage` to the following.
+En el punto anterior, en la navegación, usamos la propiedad Navigation que no está habilitada puesto que ExpensesPage es una ContentPage y no una NavigationPage. Para que nuestra página gane esa habilidad debemos envolver nuestra ExpensesPage en una NavigationPage de la siguiente manera en nuestro App.xaml.cs : 
 
 ```csharp
 MainPage = new NavigationPage(new ExpensesPage());
 ```
 
-By doing this, our `ExpensesPage.Navigation` property is now available for use! Additionally, by using a `NavigationPage`, we get a nice navigation bar at the top of all of our pages to alert users to what page they are on, and to navigate back to the top of the stack (with a "back" button). To have a title display in the navigation bar, we can update the `Title` property of each page to the appropriate value.
+Ahora sí que nuestra propiedad está desponible para usar. Utilizando además NavigationPage obtenemso una barra de navegación en la parte superior que muestra el título de donde nos encontramos y permite volver al inicio del stack con un botón Atrás. 
+Para añadir un título en la barra de navegación, basta con cambiar la propiedad Title en cada página por el valor adecuado. 
 
 `**ExpensesPage**`
 ```csharp
@@ -426,23 +422,22 @@ By doing this, our `ExpensesPage.Navigation` property is now available for use! 
 </ContentPage>
 ```
 
-Now, run the application, click on an expense cell, and you will be navigated to a detail page with more information about our expense!
+[MOSTRAMOS APP]
 
- ![](/modules/module-1/images/expenses-detail-view.png)
+##### 6. Navigation utilizando Messaging Center.
+Ahora mismo ya tenemos una navegación entre maestro y detalle. Pero aún podemos reducir la interrelación que hay entre views y viewmodels. 
+Messaging Center permite a los view models y otros componentes comunicarse sin saber nada de los demás, con un simple mensaje. 
 
-##### 6. Navigation with the Messaging Center.
-Right now, we have a working master-detail navigation flow that shows a list of expenses, as well as detailed information about each expense. We can clean this up to be even better and reduce tight coupling between our views and view models.
+Existen dos partes principales en MessagingCenter;
+1. **Subscribe**: Escucha mensajes con una firma y realiza una acción cuando estos se reciben. 
+2. **Send**: Publica un mensaje a los escuchadores.
 
-Xamarin.Forms [`MessagingCenter`](https://developer.xamarin.com/guides/xamarin-forms/messaging-center/) enables view models and other components to communicate without having to know anything about each other besides a simple message contract. There are two main parts to the `MessagingCenter`:
+Así que vamos a actualizar nuestra navegación para usarlo. 
 
-1. **Subscribe**: Listen for messages with a certain signature and perform some action when they are received. Mulitple subscribers can be listening for the same message.
-2. **Send**: Publish a message for listeners to act upon. If no listeners have subscribed then the message is ignored.
+En ExpensesViewModel eliminamos el parámetro del constructor y nuestro campo, y todas las referencias a él en SelectedExpenseItem. Ahora vamos a la página ExpensesPage y cambiamos la inicialización de ExpensesViewModel sin parámetros. 
 
-Instead of passing a `Page` around to handle navigation, what if we used the Xamarin.Forms `MessagingCenter` to handle this? Let's update our current app to use this approach.
-
-Let's start by undoing some of the "harm" we have done! Open `ExpensesViewModel` and remove the parameter from the constructor, as well as the `ExpensesPage` field and all references to it in `SelectedExpenseItem`. Jump over to `ExpensesPage.xaml.cs` and update initialization of the `ExpensesViewModel` to have no parameters. 
-
-Next, let's open back up `ExpensesViewModel` and send our first message! Let's send a message by using the following method signature `MessagingCenter.Send(TSender sender, string message, TArgs args)`. 
+Volvemos al viewmodel y enviamos nuestro primer mensaje, vamos a enviar un mensaje usando el siguiente método 
+`MessagingCenter.Send(TSender sender, string message, TArgs args)`. 
 
 ```csharp
 Expense selectedExpenseItem;
@@ -463,7 +458,8 @@ public Expense SelectedExpenseItem
 }
 ```
 
-Note that we pass in `this` as the sender, "NavigateToDetail" as the message, and our selected `Expense` object as an argument. Sending a message is great, but if nobody is listening for messages of that signature, nothing will happen. Jump back over to `ExpensesPage.xaml.cs` and add two new methods: `SubscribeToMessages` and `UnsubscribeFromMessages`. Also, override the `OnAppearing` and `OnDisappearing` lifecycle methods of our `ContentPage` to call `SubscribeToMessages` and `UnsubscribeFromMessages`.
+Enviar un mensaje está bien, pero el truco reside en que alguien nos escuche. Volvemos a nuestra página y vamos a añadir dos nuevos métodos:
+SubscribeToMessages y UnsubscribeFromMessages. También haremos override de OnAppearing y OnDisappearing para llamar a nuestros nuevos métodos. 
 
 ```csharp
 protected override void OnAppearing()
@@ -491,7 +487,8 @@ void UnsubscribeFromMessages()
 }
 ```
 
-It's important that we properly subscribe and unsubscribe to messages from the `MessagingCenter` to avoid null references and possible memory leaks. Let's subscribe to the message sent from our view model in `SubscribeToMessages`.
+Es importante suscribirse y desuscribirse de los mensajes del MessagingCenter para evitar referencias nulas y problemas de memoria. 
+Nos suscribimos al mensaje enviado por nuestro viewmodel en SubscribeToMessages
 
 ```csharp
 void SubscribeToMessages()
@@ -510,17 +507,17 @@ void SubscribeToMessages()
 	});
 }
 ```
+Esto nos suscribe a los mensajes que sean NavigateToDetail desde ExpenseViewModel con un argumentno Expense. Al recibir el mensaje validamos que sea nulo y luego completamos la navegación. 
 
-This subscribes us to messages with string "NavigateToDetail" coming from `ExpensesViewModel` with argument(s) `Expense`. If we receive a message, we first check that the argument isn't null, then navigate to our detail page. 
 
-We can easily unsuscribe in `UnsubscribeFromMessages` as well.
+Igual de fácil es realizar la desuscripción. 
 
 ```csharp
 MessagingCenter.Unsubscribe<ExpensesViewModel, Expense>(this, "NavigateToDetail");
 MessagingCenter.Unsubscribe<ExpensesViewModel, string>(this, "Error");
 ```
 
-Run the app, and navigation should still be working as intended - only this time we are properly avoiding tight coupling between our view model and view.
+[MOSTRAMOS APP]
 
-#### Closing Remarks
-In this module, you learned about the basics of building apps with Xamarin.Forms, including creating user interfaces in XAML, navigation, MVVM, data binding and commanding, as well as use of the `MessagingCenter`. In the next module, we'll take a look at polishing off our Xamarin.Forms app before connecting it to the cloud in Modules 3 and 4.
+
+
